@@ -9,6 +9,24 @@ import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
 import { supabase } from './lib/supabase';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+/** Returns the current session access token, or null if not signed in. */
+const getAccessToken = async (): Promise<string | null> => {
+  if (!supabase) return null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+};
+
+/** Builds Authorization headers for protected API calls. */
+const authHeaders = async (): Promise<Record<string, string>> => {
+  const token = await getAccessToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
 export const App: React.FC = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -61,7 +79,8 @@ export const App: React.FC = () => {
   const fetchDashboard = async (id: string) => {
     setIsLoading(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/dashboard/${id}`);
+      const headers = await authHeaders();
+      const res = await fetch(`${API_BASE}/api/dashboard/${id}`, { headers });
       if (!res.ok) {
         throw new Error('Failed to load session');
       }
@@ -85,9 +104,10 @@ export const App: React.FC = () => {
   const handleOnboardingComplete = async (formData: any) => {
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/assessment', {
+      const headers = await authHeaders();
+      const res = await fetch(`${API_BASE}/api/assessment`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify(formData)
       });
       if (!res.ok) throw new Error('Submission failed');
@@ -122,9 +142,10 @@ export const App: React.FC = () => {
   const handleToggleAction = async (actionId: string) => {
     if (!assessmentId || !dashboardData) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/daily-action/${assessmentId}/toggle`, {
+      const headers = await authHeaders();
+      const res = await fetch(`${API_BASE}/api/daily-action/${assessmentId}/toggle`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ actionId })
       });
       if (res.ok) {
@@ -141,9 +162,10 @@ export const App: React.FC = () => {
 
   const handleSendMessage = async (message: string): Promise<string> => {
     if (!assessmentId) return '';
-    const res = await fetch(`http://localhost:5000/api/coaching/${assessmentId}`, {
+    const headers = await authHeaders();
+    const res = await fetch(`${API_BASE}/api/coaching/${assessmentId}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ message })
     });
     if (!res.ok) throw new Error('Chat link failed');
@@ -224,10 +246,6 @@ export const App: React.FC = () => {
                       src="/luxury_ring_campaign.png"
                       alt="Aetheris Longevity Ecosystem"
                       className="w-full h-full object-cover opacity-90 transition-transform duration-700 group-hover:scale-102"
-                      onError={(e) => {
-                        // Fallback to absolute file system location if server asset isn't compiled
-                        e.currentTarget.src = "file:///C:/Users/anant/.gemini/antigravity/brain/8185086b-75c7-4018-b4a7-553472c2a00f/luxury_ring_campaign_1779624779633.png";
-                      }}
                     />
                   </div>
                 </div>
