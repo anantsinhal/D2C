@@ -53,3 +53,6 @@ pids/
 
 # Misc
 .history/
+
+# Accidental nested repo/submodule folder
+D2C/
