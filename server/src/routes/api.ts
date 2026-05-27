@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { createAssessment, getDashboardData, toggleDailyAction } from '../controllers/assessmentController';
 import { chatWithCoach } from '../controllers/coachingController';
 import { login, resetPassword, signup } from '../controllers/authController';
+import { createAssessmentMock } from '../controllers/testController';
 
 const router = Router();
 
@@ -12,6 +13,8 @@ router.post('/auth/reset-password', resetPassword);
 
 // Assessment and Dashboard
 router.post('/assessment', createAssessment);
+// Local testing endpoint (mocked, does not use Supabase)
+router.post('/test/assessment-mock', createAssessmentMock);
 router.get('/dashboard/:id', getDashboardData);
 
 // Daily actions checklist

@@ -10,6 +10,7 @@ import Dashboard from './components/Dashboard';
 import { supabase } from './lib/supabase';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
 
 /** Returns the current session access token, or null if not signed in. */
 const getAccessToken = async (): Promise<string | null> => {
@@ -24,6 +25,46 @@ const authHeaders = async (): Promise<Record<string, string>> => {
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
+const mapMockToDashboard = (payload: any, formData: any) => {
+  const profile = payload.profile ?? {};
+  const dailyAction = payload.dailyAction ?? { actions: [] };
+  const weeklyAudit = payload.weeklyAudit ?? {};
+
+  return {
+    assessment: {
+      _id: payload.assessmentId,
+      age: Number(profile.age ?? formData.age ?? 0),
+      primaryGoal: String(profile.primary_goal ?? formData.primaryGoal ?? ''),
+      activityLevel: String(profile.activity_level ?? formData.activityLevel ?? '')
+    },
+    healthSummary: payload.healthSummary,
+    dailyAction: {
+      _id: String(dailyAction.id ?? `${payload.assessmentId}-daily`),
+      actions: Array.isArray(dailyAction.actions) ? dailyAction.actions : []
+    },
+    weeklyAudit: {
+      overallWellnessScore: Number(weeklyAudit.overall_wellness_score ?? 0),
+      sleepAudit: weeklyAudit.sleep_audit ?? { averageHours: 0, averageQuality: 0, trend: 'N/A' },
+      stressAudit: weeklyAudit.stress_audit ?? { level: 0, description: 'N/A' },
+      activityAudit: weeklyAudit.activity_audit ?? { status: 'N/A' },
+      energyAudit: weeklyAudit.energy_audit ?? { status: 'N/A' },
+      biggestWin: String(weeklyAudit.biggest_win ?? ''),
+      biggestOpportunity: String(weeklyAudit.biggest_opportunity ?? ''),
+      focusForNextWeek: Array.isArray(weeklyAudit.focus_for_next_week) ? weeklyAudit.focus_for_next_week : [],
+      progressTimeline: Array.isArray(weeklyAudit.progress_timeline) ? weeklyAudit.progress_timeline : []
+    },
+    chartData: [
+      { day: 'Mon', sleep: Math.max(4, Number(formData.sleepHours) - 1.2), stress: Math.min(10, Number(formData.stressLevel) + 1), quality: Math.max(1, Number(formData.sleepQuality) - 2) },
+      { day: 'Tue', sleep: Math.max(4, Number(formData.sleepHours) - 0.5), stress: Math.min(10, Number(formData.stressLevel) + 0.5), quality: Math.max(1, Number(formData.sleepQuality) - 1) },
+      { day: 'Wed', sleep: Math.max(4, Number(formData.sleepHours) + 0.8), stress: Math.max(1, Number(formData.stressLevel) - 1), quality: Math.min(10, Number(formData.sleepQuality) + 1.5) },
+      { day: 'Thu', sleep: Number(formData.sleepHours), stress: Number(formData.stressLevel), quality: Number(formData.sleepQuality) },
+      { day: 'Fri', sleep: Math.max(4, Number(formData.sleepHours) - 0.2), stress: Math.min(10, Number(formData.stressLevel) + 0.2), quality: Number(formData.sleepQuality) },
+      { day: 'Sat', sleep: Math.max(4, Number(formData.sleepHours) + 1.5), stress: Math.max(1, Number(formData.stressLevel) - 2), quality: Math.min(10, Number(formData.sleepQuality) + 2) },
+      { day: 'Sun', sleep: Math.max(4, Number(formData.sleepHours) + 0.5), stress: Math.max(1, Number(formData.stressLevel) - 1.5), quality: Math.min(10, Number(formData.sleepQuality) + 1) }
+    ]
   };
 };
 
@@ -96,7 +137,7 @@ export const App: React.FC = () => {
   };
 
   useEffect(() => {
-    if (assessmentId) {
+    if (assessmentId && !DEMO_MODE) {
       fetchDashboard(assessmentId);
     }
   }, [assessmentId]);
@@ -104,8 +145,9 @@ export const App: React.FC = () => {
   const handleOnboardingComplete = async (formData: any) => {
     setIsLoading(true);
     try {
+      const endpoint = DEMO_MODE ? `${API_BASE}/api/test/assessment-mock` : `${API_BASE}/api/assessment`;
       const headers = await authHeaders();
-      const res = await fetch(`${API_BASE}/api/assessment`, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers,
         body: JSON.stringify(formData)
@@ -115,7 +157,7 @@ export const App: React.FC = () => {
       
       localStorage.setItem('aetheris_assessment_id', data.assessmentId);
       setAssessmentId(data.assessmentId);
-      setDashboardData({
+      setDashboardData(DEMO_MODE ? mapMockToDashboard(data, formData) : {
         assessment: formData,
         healthSummary: data.healthSummary,
         dailyAction: data.dailyAction,
@@ -141,6 +183,21 @@ export const App: React.FC = () => {
 
   const handleToggleAction = async (actionId: string) => {
     if (!assessmentId || !dashboardData) return;
+    if (DEMO_MODE) {
+      setDashboardData((prev: any) => {
+        const nextActions = (prev?.dailyAction?.actions || []).map((a: any) =>
+          String(a._id) === String(actionId) ? { ...a, completed: !a.completed } : a
+        );
+        return {
+          ...prev,
+          dailyAction: {
+            ...prev.dailyAction,
+            actions: nextActions
+          }
+        };
+      });
+      return;
+    }
     try {
       const headers = await authHeaders();
       const res = await fetch(`${API_BASE}/api/daily-action/${assessmentId}/toggle`, {
@@ -161,6 +218,9 @@ export const App: React.FC = () => {
   };
 
   const handleSendMessage = async (message: string): Promise<string> => {
+    if (DEMO_MODE) {
+      return `Demo coach response: prioritize sleep consistency and hydration today. You said: ${message}`;
+    }
     if (!assessmentId) return '';
     const headers = await authHeaders();
     const res = await fetch(`${API_BASE}/api/coaching/${assessmentId}`, {
@@ -189,7 +249,7 @@ export const App: React.FC = () => {
     );
   }
 
-  if (!session) {
+  if (!session && !DEMO_MODE) {
     return <AuthPage />;
   }
 

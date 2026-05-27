@@ -40,10 +40,27 @@ export const createAssessment = async (req: Request, res: Response) => {
       if (daErr) console.error('Daily actions insert error:', daErr);
     }
 
-    // Upsert weekly audit
+    // Upsert weekly audit: update existing row by user_id, otherwise insert
     const weeklyPayload = buildWeeklyAuditPayload(userId, analysis);
-    const { error: waErr } = await ctx.supabase.from('weekly_audits').upsert(weeklyPayload, { onConflict: 'user_id' });
-    if (waErr) console.error('Weekly audit upsert error:', waErr);
+    try {
+      const { data: updated, error: updErr } = await ctx.supabase
+        .from('weekly_audits')
+        .update(weeklyPayload)
+        .eq('user_id', userId)
+        .select()
+        .maybeSingle();
+
+      if (updErr) {
+        console.error('Weekly audit update error:', updErr);
+      }
+
+      if (!updated) {
+        const { error: insErr } = await ctx.supabase.from('weekly_audits').insert([weeklyPayload]);
+        if (insErr) console.error('Weekly audit insert error:', insErr);
+      }
+    } catch (e) {
+      console.error('Weekly audit upsert fallback error:', e);
+    }
 
     return res.status(201).json({ success: true, assessmentId: userId, healthSummary: { energyStatus: analysis.energyStatus, sleepStatus: analysis.sleepStatus, stressStatus: analysis.stressStatus, activityStatus: analysis.activityStatus, primaryFocus: analysis.primaryFocus } });
   } catch (error) {

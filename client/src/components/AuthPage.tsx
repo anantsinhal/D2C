@@ -83,7 +83,11 @@ export const AuthPage: React.FC = () => {
         }
 
         await syncSession(data.session);
-        setStatus(data.session ? 'Account created and signed in.' : 'Account created. Check your email if confirmation is enabled.');
+        setStatus(
+          data.session
+            ? 'Account created! Signing you in...'
+            : '✅ Account created! Please check your inbox and click the confirmation link. Once confirmed, come back and log in.'
+        );
         return;
       }
 
