@@ -44,7 +44,7 @@ export const AICoach: React.FC<AICoachProps> = ({ onSendMessage }) => {
     if (!text.trim() || isSending) return;
 
     const userMsg: Message = {
-      id: `msg-${Date.now()}-user`,
+      id: `msg-${crypto.randomUUID()}-user`,
       sender: 'user',
       text,
       timestamp: new Date()
@@ -57,15 +57,15 @@ export const AICoach: React.FC<AICoachProps> = ({ onSendMessage }) => {
     try {
       const responseText = await onSendMessage(text);
       const coachMsg: Message = {
-        id: `msg-${Date.now()}-coach`,
+        id: `msg-${crypto.randomUUID()}-coach`,
         sender: 'coach',
         text: responseText,
         timestamp: new Date()
       };
       setMessages((prev) => [...prev, coachMsg]);
-    } catch (error) {
+    } catch {
       const errorMsg: Message = {
-        id: `msg-${Date.now()}-error`,
+        id: `msg-${crypto.randomUUID()}-error`,
         sender: 'coach',
         text: "Sorry, I could not load that answer. Please try again.",
         timestamp: new Date()

@@ -17,7 +17,7 @@ export const AuthPage: React.FC = () => {
 
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-  const syncSession = async (session: any) => {
+  const syncSession = async (session: { access_token: string; refresh_token: string } | null) => {
     if (!supabase || !session?.access_token || !session?.refresh_token) return;
     await supabase.auth.setSession({
       access_token: session.access_token,

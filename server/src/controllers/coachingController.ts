@@ -46,17 +46,19 @@ const generateCoachResponse = (message: string, profile: ProfileRow) => {
 
 const callGemini = async (message: string, profile: ProfileRow) => {
   const apiKey = process.env.GEMINI_API_KEY;
-  const model = process.env.GEMINI_MODEL || 'models/text-bison-001';
+  const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
   if (!apiKey) throw new Error('Missing GEMINI_API_KEY');
 
-  const url = `https://generativelanguage.googleapis.com/v1beta2/${model}:generate?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const prompt = `You are a friendly health coach. User profile: age ${profile.age}, sleepHours ${profile.sleep_hours}, sleepQuality ${profile.sleep_quality}, stressLevel ${profile.stress_level}, activityLevel ${profile.activity_level}, primaryGoal ${profile.primary_goal}. User message: "${message}". Reply empathetically with up to 3 short actionable suggestions and one simple takeaway.`;
 
   const body = {
-    prompt: { text: prompt },
-    temperature: 0.2,
-    maxOutputTokens: 256
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 256
+    }
   };
 
   const res = await fetch(url, {
@@ -72,12 +74,7 @@ const callGemini = async (message: string, profile: ProfileRow) => {
 
   const data = await res.json();
 
-  // Try multiple common response shapes; fall back to serialized JSON if unknown.
-  const text =
-    data?.candidates?.[0]?.content ||
-    data?.output?.[0]?.content?.map((c: any) => c?.text || c)?.join('\n') ||
-    data?.outputs?.[0]?.content?.[0]?.text ||
-    JSON.stringify(data);
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || JSON.stringify(data);
 
   return String(text);
 };

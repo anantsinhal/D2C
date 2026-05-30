@@ -4,7 +4,7 @@ import { Activity, ArrowRight, ShieldCheck, Heart, Moon, AlertTriangle, Target }
 import GlassCard from './GlassCard';
 
 interface OnboardingProps {
-  onComplete: (data: any) => void;
+  onComplete: (data: { age: number; sleepHours: number; sleepQuality: number; stressLevel: number; activityLevel: string; primaryGoal: string; }) => void;
   isLoading: boolean;
 }
 
